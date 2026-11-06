@@ -1642,3 +1642,36 @@ describe('flow collection padding', () => {
     expect(doc.toString({ flowCollectionPadding: false })).toBe('[1, 2]\n')
   })
 })
+
+describe('block scalar with leading-space content (#692)', () => {
+  const cases: Array<[string, string]> = [
+    ['  a\n  b', '|1-\n   a\n   b\n'],
+    ['  indented\nlines', '|1-\n   indented\n lines\n'],
+    [' a\nb', '|1-\n  a\n b\n'],
+    ['   x\n y\nz', '|1-\n    x\n  y\n z\n'],
+    ['    deep\nshallow', '|1-\n     deep\n shallow\n'],
+    ['  a\n  b\n', '|1\n   a\n   b\n'],
+    ['  a\n  b\n\n\n', '|1+\n   a\n   b\n\n\n']
+  ]
+  for (const [value, expected] of cases) {
+    test(JSON.stringify(value), () => {
+      const str = YAML.stringify(value)
+      expect(str).toBe(expected)
+      expect(YAML.parse(str)).toBe(value)
+    })
+  }
+
+  test('folded style', () => {
+    const value = '  a\n  b'
+    const str = YAML.stringify(value, { blockQuote: 'folded' })
+    expect(str).toBe('>1-\n   a\n   b\n')
+    expect(YAML.parse(str)).toBe(value)
+  })
+
+  test('nested mapping still uses parent indent', () => {
+    const value = { key: '  a\n  b' }
+    const str = YAML.stringify(value)
+    expect(str).toBe('key: |2-\n    a\n    b\n')
+    expect(YAML.parse(str)).toEqual(value)
+  })
+})

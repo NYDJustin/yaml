@@ -223,7 +223,6 @@ function blockString(
   if (end) {
     value = value.slice(0, -end.length)
     if (end[end.length - 1] === '\n') end = end.slice(0, -1)
-    end = end.replace(blockEndNewlines, `$&${indent}`)
   }
 
   // determine indent indicator from whitespace at value start
@@ -242,10 +241,14 @@ function blockString(
   )
   if (start) {
     value = value.substring(start.length)
-    start = start.replace(/\n+/g, `$&${indent}`)
   }
 
   const indentSize = indent ? '2' : '1' // root is at -1
+  const bodyIndent = startWithSpace
+    ? indent.padEnd(Number(indentSize), ' ')
+    : indent
+  if (end) end = end.replace(blockEndNewlines, `$&${bodyIndent}`)
+  if (start) start = start.replace(/\n+/g, `$&${bodyIndent}`)
   // Leading | or > is added later
   let header = (startWithSpace ? indentSize : '') + chomp
   if (comment) {
@@ -258,25 +261,26 @@ function blockString(
       .replace(/\n+/g, '\n$&')
       .replace(/(?:^|\n)([\t ].*)(?:([\n\t ]*)\n(?![\n\t ]))?/g, '$1$2') // more-indented lines aren't folded
       //                ^ more-ind. ^ empty     ^ capture next empty lines only at end of indent
-      .replace(/\n+/g, `$&${indent}`)
+      .replace(/\n+/g, `$&${bodyIndent}`)
     let literalFallback = false
     const foldOptions = getFoldOptions(ctx, true)
+    foldOptions.indentAtStart = bodyIndent.length
     if (blockQuote !== 'folded' && type !== Scalar.BLOCK_FOLDED) {
       foldOptions.onOverflow = () => {
         literalFallback = true
       }
     }
     const body = foldFlowLines(
-      `${start}${foldedValue}${end}`,
-      indent,
+      `${bodyIndent}${start}${foldedValue}${end}`,
+      bodyIndent,
       FOLD_BLOCK,
       foldOptions
     )
-    if (!literalFallback) return `>${header}\n${indent}${body}`
+    if (!literalFallback) return `>${header}\n${body}`
   }
 
-  value = value.replace(/\n+/g, `$&${indent}`)
-  return `|${header}\n${indent}${start}${value}${end}`
+  value = value.replace(/\n+/g, `$&${bodyIndent}`)
+  return `|${header}\n${bodyIndent}${start}${value}${end}`
 }
 
 function plainString(
